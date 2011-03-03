@@ -1,0 +1,119 @@
+
+module Hans.Music.Stigar
+
+; Midi device to use
+DEVICE = "Port 8"
+
+help _ = do
+    print "========================================"
+    print " Stigar"
+    print "    p () to print devices "
+    print "    r () to run piece     "
+    print "                          "
+
+
+
+p _ = printDevices ()
+
+r _ = do
+      ; dev = deviceByName DEVICE                            ; FIXME gets wrong dev
+      dev = getMidiDevice  (nth 22 (getMidiDeviceInfo () ))
+
+      (method MidiDevice "open" ()) dev
+
+      recv = (method MidiDevice "getReceiver" ()) dev
+
+      sleep 500
+      sendMsg recv (makeMsg 144 0 80 80)
+      sleep 500
+      sendMsg recv (makeMsg 144 0 80 80)
+      sleep 500
+      sendMsg recv (makeMsg 144 0 80 80)
+      sleep 500
+      sendMsg recv (makeMsg 144 0 80 80)
+      sleep 500
+      sendMsg recv (makeMsg 144 0 80 80)
+
+      (method MidiDevice "close" ()) dev
+      (method MidiDevice "isOpen" ()) dev 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+; ============================================================
+
+MidiSystem     = class "javax.sound.midi.MidiSystem"
+MidiDevice     = class "javax.sound.midi.MidiDevice"
+MidiDeviceInfo = class "javax.sound.midi.MidiDevice$Info"
+MidiMessage    = class "javax.sound.midi.MidiMessage"
+ShortMessage   = class "javax.sound.midi.ShortMessage"
+Receiver       = class "javax.sound.midi.Receiver"
+
+getMidiDeviceInfo = seq . method MidiSystem "getMidiDeviceInfo" []
+getMidiDevice     =       method MidiSystem "getMidiDevice"     [ MidiDeviceInfo ]
+setMessage        =       method ShortMessage "setMessage"      [ `int, `int, `int, `int ]
+send              =       method Receiver    "send"             [ MidiMessage, `long ]
+
+printDevices _ = do (print "\nDevices:")
+    map (string .. (++ "    ") .. print) (getMidiDeviceInfo ())
+
+deviceByName name = getMidiDevice (find (string .. (== name)) (getMidiDeviceInfo ()))
+
+
+makeMsg cmd ch data1 data2 =
+    do  msg = new ShortMessage
+        setMessage msg (intValue cmd) (intValue ch) (intValue data1) (intValue data2)
+        msg
+
+sendMsg recv msg =
+    send recv msg (longValue 0)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+; ============================================================
+
+BigInteger       = class "java.math.BigInteger"
+intValue         = method BigInteger "intValue" ()
+longValue        = method BigInteger "longValue" ()
+sleep             = longValue .. method (class "Thread") "sleep"       [ `long ]
+
+
+
+find pred = foldl (fn (x y) if (pred y) y else x) ()
+
+
+(&&) x y = 
+    match (x, y)
+        (_:true, _:true) = true
+        (_:bool, _:bool) = false
+
+(||) x y = 
+    match (x, y)
+        (_:true, _:bool) = true
+        (_:bool, _:true) = true
+        (_:bool, _:bool) = false
+            
+(!=) x y = not (x == y)
