@@ -1,8 +1,15 @@
+; load "~/Stigar/Stigar.vitry"
 
 module Hans.Music.Stigar
 
-; Midi device to use
+NOTE_ON = 144
+NOTE_OFF = 128
+CONTROL_CHANGE = 176
+PEDAL          = 64
+
 DEVICE = "Port 8"
+CHANNEL = 0
+
 
 help _ = do
     print "========================================"
@@ -11,41 +18,32 @@ help _ = do
     print "    r () to run piece     "
     print "                          "
 
-
-
 p _ = printDevices ()
 
 r _ = do
       ; dev = deviceByName DEVICE                            ; FIXME gets wrong dev
       dev = getMidiDevice  (nth 22 (getMidiDeviceInfo () ))
-
       (method MidiDevice "open" ()) dev
 
-      recv = (method MidiDevice "getReceiver" ()) dev
-
-      sleep 500
-      sendMsg recv (makeMsg 144 0 80 80)
-      sleep 500
-      sendMsg recv (makeMsg 144 0 80 80)
-      sleep 500
-      sendMsg recv (makeMsg 144 0 80 80)
-      sleep 500
-      sendMsg recv (makeMsg 144 0 80 80)
-      sleep 500
-      sendMsg recv (makeMsg 144 0 80 80)
+      r = (method MidiDevice "getReceiver" ()) dev
+      
+      test r
 
       (method MidiDevice "close" ()) dev
-      (method MidiDevice "isOpen" ()) dev 
+      (method MidiDevice "isOpen" ()) dev
+      
 
-
-
-
-
-
-
-
-
-
+test r =
+    do ped r true
+      sleep 500
+      on r 80 80
+      sleep 500
+      off r 80
+      sleep 500
+      on r 80 80
+      sleep 500
+      off r 80
+      ped r false
 
 
 
@@ -79,15 +77,13 @@ makeMsg cmd ch data1 data2 =
 
 sendMsg recv msg =
     send recv msg (longValue 0)
-
-
-
-
-
-
-
-
-
+    
+on  r pitch vel = sendMsg r (makeMsg NOTE_ON CHANNEL pitch vel)
+off r pitch     = sendMsg r (makeMsg NOTE_OFF CHANNEL pitch 0)
+ped r down      =
+    if down
+        sendMsg r (makeMsg CONTROL_CHANGE CHANNEL PEDAL 127)
+        sendMsg r (makeMsg CONTROL_CHANGE CHANNEL PEDAL 0)
 
 
 
@@ -98,7 +94,7 @@ sendMsg recv msg =
 BigInteger       = class "java.math.BigInteger"
 intValue         = method BigInteger "intValue" ()
 longValue        = method BigInteger "longValue" ()
-sleep             = longValue .. method (class "Thread") "sleep"       [ `long ]
+sleep            = longValue .. method (class "Thread") "sleep"       [ `long ]
 
 
 
