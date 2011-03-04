@@ -1,52 +1,51 @@
 ; load "~/Stigar/Stigar.vitry"
 
+; =============================================================================
+; Stigar - for player piano
+; Hans Hoglund (2011)
+; =============================================================================
 module Hans.Music.Stigar
 
-
-NOTE_ON        = 144
-NOTE_OFF       = 128
-CONTROL_CHANGE = 176
-SOST_PED       = 64
-UNA_CORDA_PED  = 67
-
-DEVICE         = "Port 8"
-CHANNEL        = 0
-
-
-
-
-help _ = do print "========================================"
-            print " Stigar"
-            print "    p () to print devices "
-            print "    r () to run piece     "
-            print "                          "
-
-p _    = printDevices ()
-
-r _    = do
-            ; dev = deviceByName DEVICE                            ; FIXME gets wrong dev
-            dev = getMidiDevice (nth 20 (getMidiDeviceInfo ()))
-            (method MidiDevice "open" ()) dev
-            recv = (method MidiDevice "getReceiver" ()) dev      
-            ; test recv
-            play recv
-            
-            (method MidiDevice "close" ()) dev
-            (method MidiDevice "isOpen" ()) dev
-
+fetchDeviceBy = `name
+deviceNum     = 20
+deviceName    = "Port 8"
+channel       = 0
 
 
 down   = `down
 up     = `up  
 unaCorda = `unaCorda
 treCorde = `treCorde
+
+test   = [down, unaCorda, (60, 5, 0), (62, 5, 1500), up, (60, 0, 0), (62, 0, 1500), treCorde]
 events = [down, unaCorda, (60, 5, 0), (62, 5, 1500), up, (60, 0, 0), (62, 0, 1500), treCorde]
+
+
+
+help _ = do print "============================================================"
+            print " Stigar - for player piano                                  "
+            print " Hans Hoglund (2011)                                        "
+            print "============================================================"
+            print "    p () or printDevices ()                                 "
+            print "    r () or run ()                                          "
+            print "    deviceByName name                                       "
+            print "    deviceByNum  n                                          "
+            print "============================================================"
+
+p _    = printDevices ()
+
+r _    = do
+            dev = device ()
+            recv = openDevAndFetchRecv dev
+            play recv test            
+            closeDev dev
+            ()
 
 
 ; Plays a list of events
 ; Blocks the current thread
 ;   [(pitch, vel, dur)] -> [(pitch, vel, dur)]
-play r = foldl playEvent r events
+play r events = foldl playEvent r events
 playEvent r action = 
     match action
         (pitch, vel, dur) = do  on r pitch vel
@@ -62,28 +61,17 @@ playEvent r action =
                             r
 
 
-
-
-
-test r =
-    do ped r true
-      sleep 500
-      on r  80 80
-      sleep 500
-      off r 80
-      sleep 500
-      on r  80 80
-      sleep 500
-      off r 80
-      ped r false
-      sleep 1000
-
-
-
-
+main = help ()
 
 
 ; ============================================================
+; MIDI backend
+
+NOTE_ON        = 144
+NOTE_OFF       = 128
+CONTROL_CHANGE = 176
+SOST_PED       = 64
+UNA_CORDA_PED  = 67
 
 MidiSystem        = class "javax.sound.midi.MidiSystem"
 MidiDevice        = class "javax.sound.midi.MidiDevice"
@@ -103,12 +91,17 @@ longValue         = method BigInteger "longValue" ()
 printDevices _ = do (print "\nDevices:")
                     map (string .. (++ "    ") .. print) 
                         (getMidiDeviceInfo ())
-
-deviceByName name = 
-    getMidiDevice 
-        find (string .. (== name))
-            getMidiDeviceInfo ()
-
+deviceByName name = getMidiDevice 
+                        find (string .. (== name)) (getMidiDeviceInfo ())
+deviceByNum n     = getMidiDevice 
+                        nth n (getMidiDeviceInfo ())
+device _          = match fetchDeviceBy
+                        _:`num = deviceByNum deviceNum
+                        _:`name = deviceByName deviceName
+openDevAndFetchRecv dev =
+    do (method MidiDevice "open" ()) dev
+       (method MidiDevice "getReceiver" ()) dev
+closeDev = method MidiDevice "close" ()
 
 makeMsg cmd ch data1 data2 =
     do  msg = new ShortMessage
@@ -118,25 +111,24 @@ makeMsg cmd ch data1 data2 =
 sendMsg recv msg =
     send recv msg (longValue 0)
     
-on  r pitch vel = sendMsg r (makeMsg NOTE_ON CHANNEL pitch vel)
-off r pitch     = sendMsg r (makeMsg NOTE_OFF CHANNEL pitch 0)
+on  r pitch vel = sendMsg r (makeMsg NOTE_ON channel pitch vel)
+off r pitch     = sendMsg r (makeMsg NOTE_OFF channel pitch 0)
 ped r down      =
     if down
-        sendMsg r (makeMsg CONTROL_CHANGE CHANNEL SOST_PED 127)
-        sendMsg r (makeMsg CONTROL_CHANGE CHANNEL SOST_PED 0)
-ucPed r down =
+        sendMsg r (makeMsg CONTROL_CHANGE channel SOST_PED 127)
+        sendMsg r (makeMsg CONTROL_CHANGE channel SOST_PED 0)
+ucPed r down    =
     if down
-        sendMsg r (makeMsg CONTROL_CHANGE CHANNEL UNA_CORDA_PED 127)
-        sendMsg r (makeMsg CONTROL_CHANGE CHANNEL UNA_CORDA_PED 0)
-
+        sendMsg r (makeMsg CONTROL_CHANGE channel UNA_CORDA_PED 127)
+        sendMsg r (makeMsg CONTROL_CHANGE channel UNA_CORDA_PED 0)
 sleep           = longValue .. method (class "Thread") "sleep" [ `long ]
 
 
 
 
 ; ============================================================
-
-
+; General stuff
+; Add to standard library!
 
 
 find pred = foldl (fn (x y) if (pred y) y else x) ()
