@@ -3,22 +3,27 @@
 ; =============================================================================
 ; Stigar - for player piano
 ; Hans Hoglund (2011)
+; Vitry v0.1.0
 ; =============================================================================
 module Hans.Music.Stigar
+
 
 fetchDeviceBy = `name
 deviceNum     = 20
 deviceName    = "Port 8"
 channel       = 0
+testPitch     = 108
 
-
-down   = `down
-up     = `up  
+down     = `down
+up       = `up
 unaCorda = `unaCorda
 treCorde = `treCorde
 
-test   = [down, unaCorda, (60, 5, 0), (62, 5, 1500), up, (60, 0, 0), (62, 0, 1500), treCorde]
-events = [down, unaCorda, (60, 5, 0), (62, 5, 1500), up, (60, 0, 0), (62, 0, 1500), treCorde]
+testSeq = 
+    [down, unaCorda, (testPitch, 50, 500), (testPitch, 0, 0), up, treCorde]
+
+events = 
+    [down, unaCorda, (60, 5, 0), (62, 5, 1500), up, (60, 0, 0), (62, 0, 1500), treCorde]
 
 
 
@@ -27,17 +32,23 @@ help _ = do print "============================================================"
             print " Hans Hoglund (2011)                                        "
             print "============================================================"
             print "    p () or printDevices ()                                 "
+            print "    t () or test ()                                          "
             print "    r () or run ()                                          "
             print "    deviceByName name                                       "
             print "    deviceByNum  n                                          "
             print "============================================================"
 
-p _    = printDevices ()
 
-r _    = do
+test _ = do
             dev = device ()
             recv = openDevAndFetchRecv dev
-            play recv test            
+            play recv testSeq
+            closeDev dev
+            ()
+run _  = do
+            dev = device ()
+            recv = openDevAndFetchRecv dev
+            play recv events
             closeDev dev
             ()
 
@@ -46,7 +57,7 @@ r _    = do
 ; Blocks the current thread
 ;   [(pitch, vel, dur)] -> [(pitch, vel, dur)]
 play r events = foldl playEvent r events
-playEvent r action = 
+playEvent r action =
     match action
         (pitch, vel, dur) = do  on r pitch vel
                             sleep dur
@@ -60,7 +71,9 @@ playEvent r action =
         _:treCorde        = do ucPed r false
                             r
 
-
+p _ = printDevices ()
+t _ = test ()
+r _ = run ()
 main = help ()
 
 
@@ -89,11 +102,11 @@ intValue          = method BigInteger "intValue" ()
 longValue         = method BigInteger "longValue" ()
 
 printDevices _ = do (print "\nDevices:")
-                    map (string .. (++ "    ") .. print) 
+                    map (string .. (++ "    ") .. print)
                         (getMidiDeviceInfo ())
-deviceByName name = getMidiDevice 
+deviceByName name = getMidiDevice
                         find (string .. (== name)) (getMidiDeviceInfo ())
-deviceByNum n     = getMidiDevice 
+deviceByNum n     = getMidiDevice
                         nth n (getMidiDeviceInfo ())
 device _          = match fetchDeviceBy
                         _:`num = deviceByNum deviceNum
@@ -110,7 +123,7 @@ makeMsg cmd ch data1 data2 =
 
 sendMsg recv msg =
     send recv msg (longValue 0)
-    
+
 on  r pitch vel = sendMsg r (makeMsg NOTE_ON channel pitch vel)
 off r pitch     = sendMsg r (makeMsg NOTE_OFF channel pitch 0)
 ped r down      =
@@ -134,15 +147,15 @@ sleep           = longValue .. method (class "Thread") "sleep" [ `long ]
 find pred = foldl (fn (x y) if (pred y) y else x) ()
 
 
-(&&) x y = 
+(&&) x y =
     match (x, y)
         (_:true, _:true) = true
         (_:bool, _:bool) = false
 
-(||) x y = 
+(||) x y =
     match (x, y)
         (_:true, _:bool) = true
         (_:bool, _:true) = true
         (_:bool, _:bool) = false
-            
+
 (!=) x y = not (x == y)
