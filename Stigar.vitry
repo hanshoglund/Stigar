@@ -24,10 +24,33 @@ r _    = do
             ; dev = deviceByName DEVICE                            ; FIXME gets wrong dev
             dev = getMidiDevice (nth 20 (getMidiDeviceInfo ()))
             (method MidiDevice "open" ()) dev
-            r = (method MidiDevice "getReceiver" ()) dev      
-            test r
+            recv = (method MidiDevice "getReceiver" ()) dev      
+            ; test recv
+            play recv
+            
             (method MidiDevice "close" ()) dev
             (method MidiDevice "isOpen" ()) dev
+
+
+
+events = [(60, 5, 0), (62, 5, 1500), (60, 0, 0), (62, 0, 0)]
+    
+
+
+; Plays a list of events
+; Blocks the current thread
+;   [(pitch, vel, dur)] -> [(pitch, vel, dur)]
+play r = print (foldl playEvent r events) 
+
+playEvent r (pitch, vel, dur) = 
+    do  on r pitch vel
+        sleep dur
+        r
+    
+
+
+
+
 
 test r =
     do ped r true
