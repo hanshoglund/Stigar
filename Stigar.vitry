@@ -6,10 +6,13 @@ module Hans.Music.Stigar
 NOTE_ON        = 144
 NOTE_OFF       = 128
 CONTROL_CHANGE = 176
-PEDAL          = 64
+SOST_PED       = 64
+UNA_CORDA_PED  = 67
 
 DEVICE         = "Port 8"
 CHANNEL        = 0
+
+
 
 
 help _ = do print "========================================"
@@ -33,20 +36,30 @@ r _    = do
 
 
 
-events = [(60, 5, 0), (62, 5, 1500), (60, 0, 0), (62, 0, 0)]
-    
+down   = `down
+up     = `up  
+unaCorda = `unaCorda
+treCorde = `treCorde
+events = [down, unaCorda, (60, 5, 0), (62, 5, 1500), up, (60, 0, 0), (62, 0, 1500), treCorde]
 
 
 ; Plays a list of events
 ; Blocks the current thread
 ;   [(pitch, vel, dur)] -> [(pitch, vel, dur)]
-play r = print (foldl playEvent r events) 
-
-playEvent r (pitch, vel, dur) = 
-    do  on r pitch vel
-        sleep dur
-        r
-    
+play r = foldl playEvent r events
+playEvent r action = 
+    match action
+        (pitch, vel, dur) = do  on r pitch vel
+                            sleep dur
+                            r
+        _:down            = do ped r true
+                            r
+        _:up              = do ped r false
+                            r
+        _:unaCorda        = do ucPed r true
+                            r
+        _:treCorde        = do ucPed r false
+                            r
 
 
 
@@ -109,8 +122,12 @@ on  r pitch vel = sendMsg r (makeMsg NOTE_ON CHANNEL pitch vel)
 off r pitch     = sendMsg r (makeMsg NOTE_OFF CHANNEL pitch 0)
 ped r down      =
     if down
-        sendMsg r (makeMsg CONTROL_CHANGE CHANNEL PEDAL 127)
-        sendMsg r (makeMsg CONTROL_CHANGE CHANNEL PEDAL 0)
+        sendMsg r (makeMsg CONTROL_CHANGE CHANNEL SOST_PED 127)
+        sendMsg r (makeMsg CONTROL_CHANGE CHANNEL SOST_PED 0)
+ucPed r down =
+    if down
+        sendMsg r (makeMsg CONTROL_CHANGE CHANNEL UNA_CORDA_PED 127)
+        sendMsg r (makeMsg CONTROL_CHANGE CHANNEL UNA_CORDA_PED 0)
 
 sleep           = longValue .. method (class "Thread") "sleep" [ `long ]
 
