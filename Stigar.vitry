@@ -2,48 +2,45 @@
 
 module Hans.Music.Stigar
 
-NOTE_ON = 144
-NOTE_OFF = 128
+
+NOTE_ON        = 144
+NOTE_OFF       = 128
 CONTROL_CHANGE = 176
 PEDAL          = 64
 
-DEVICE = "Port 8"
-CHANNEL = 0
+DEVICE         = "Port 8"
+CHANNEL        = 0
 
 
-help _ = do
-    print "========================================"
-    print " Stigar"
-    print "    p () to print devices "
-    print "    r () to run piece     "
-    print "                          "
+help _ = do print "========================================"
+            print " Stigar"
+            print "    p () to print devices "
+            print "    r () to run piece     "
+            print "                          "
 
-p _ = printDevices ()
+p _    = printDevices ()
 
-r _ = do
-      ; dev = deviceByName DEVICE                            ; FIXME gets wrong dev
-      dev = getMidiDevice  (nth 22 (getMidiDeviceInfo () ))
-      (method MidiDevice "open" ()) dev
-
-      r = (method MidiDevice "getReceiver" ()) dev
-      
-      test r
-
-      (method MidiDevice "close" ()) dev
-      (method MidiDevice "isOpen" ()) dev
-      
+r _    = do
+            ; dev = deviceByName DEVICE                            ; FIXME gets wrong dev
+            dev = getMidiDevice (nth 20 (getMidiDeviceInfo ()))
+            (method MidiDevice "open" ()) dev
+            r = (method MidiDevice "getReceiver" ()) dev      
+            test r
+            (method MidiDevice "close" ()) dev
+            (method MidiDevice "isOpen" ()) dev
 
 test r =
     do ped r true
       sleep 500
-      on r 80 80
+      on r  80 80
       sleep 500
       off r 80
       sleep 500
-      on r 80 80
+      on r  80 80
       sleep 500
       off r 80
       ped r false
+      sleep 1000
 
 
 
@@ -52,22 +49,29 @@ test r =
 
 ; ============================================================
 
-MidiSystem     = class "javax.sound.midi.MidiSystem"
-MidiDevice     = class "javax.sound.midi.MidiDevice"
-MidiDeviceInfo = class "javax.sound.midi.MidiDevice$Info"
-MidiMessage    = class "javax.sound.midi.MidiMessage"
-ShortMessage   = class "javax.sound.midi.ShortMessage"
-Receiver       = class "javax.sound.midi.Receiver"
+MidiSystem        = class "javax.sound.midi.MidiSystem"
+MidiDevice        = class "javax.sound.midi.MidiDevice"
+MidiDeviceInfo    = class "javax.sound.midi.MidiDevice$Info"
+MidiMessage       = class "javax.sound.midi.MidiMessage"
+ShortMessage      = class "javax.sound.midi.ShortMessage"
+Receiver          = class "javax.sound.midi.Receiver"
+BigInteger        = class "java.math.BigInteger"
 
-getMidiDeviceInfo = seq . method MidiSystem "getMidiDeviceInfo" []
-getMidiDevice     =       method MidiSystem "getMidiDevice"     [ MidiDeviceInfo ]
-setMessage        =       method ShortMessage "setMessage"      [ `int, `int, `int, `int ]
-send              =       method Receiver    "send"             [ MidiMessage, `long ]
+getMidiDeviceInfo = method MidiSystem "getMidiDeviceInfo" () .. seq
+getMidiDevice     = method MidiSystem "getMidiDevice" [ MidiDeviceInfo ]
+setMessage        = method ShortMessage "setMessage" [ `int, `int, `int, `int ]
+send              = method Receiver "send" [ MidiMessage, `long ]
+intValue          = method BigInteger "intValue" ()
+longValue         = method BigInteger "longValue" ()
 
 printDevices _ = do (print "\nDevices:")
-    map (string .. (++ "    ") .. print) (getMidiDeviceInfo ())
+                    map (string .. (++ "    ") .. print) 
+                        (getMidiDeviceInfo ())
 
-deviceByName name = getMidiDevice (find (string .. (== name)) (getMidiDeviceInfo ()))
+deviceByName name = 
+    getMidiDevice 
+        find (string .. (== name))
+            getMidiDeviceInfo ()
 
 
 makeMsg cmd ch data1 data2 =
@@ -85,16 +89,13 @@ ped r down      =
         sendMsg r (makeMsg CONTROL_CHANGE CHANNEL PEDAL 127)
         sendMsg r (makeMsg CONTROL_CHANGE CHANNEL PEDAL 0)
 
+sleep           = longValue .. method (class "Thread") "sleep" [ `long ]
 
 
 
 
 ; ============================================================
 
-BigInteger       = class "java.math.BigInteger"
-intValue         = method BigInteger "intValue" ()
-longValue        = method BigInteger "longValue" ()
-sleep            = longValue .. method (class "Thread") "sleep"       [ `long ]
 
 
 
