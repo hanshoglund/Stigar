@@ -139,30 +139,3 @@ sleep           = longValue .. method (class "Thread") "sleep" [ `long ]
 
 
 
-; ============================================================
-; General stuff
-; Add to standard library!
-
-length    = foldl (fn (x y) x+1) 0
-find pred = foldl (fn (x y) if (pred y) y else x) ()
-
-zipWith f xs ys =
-    match (f, xs, ys)
-        (f, (x, xs), (y, ys))     = cons (f x y) (zipWith f xs ys)
-        (_, _, _)                 = ()
-    
-map_ f    = foldr (cons . f) ()
-
-
-(&&) x y =
-    match (x, y)
-        (_:true, _:true) = true
-        (_:bool, _:bool) = false
-
-(||) x y =
-    match (x, y)
-        (_:true, _:bool) = true
-        (_:bool, _:true) = true
-        (_:bool, _:bool) = false
-
-(!=) x y = not (x == y)
