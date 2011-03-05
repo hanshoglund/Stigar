@@ -8,11 +8,11 @@
 module Hans.Music.Stigar
 
 
-fetchDeviceBy = `name
-deviceNum     = 20
+fetchDeviceBy = `num
+deviceNum     = 3
 deviceName    = "Port 8"
 channel       = 0
-testPitch     = 108
+testPitch     = 50
 
 down     = `down
 up       = `up
@@ -20,7 +20,7 @@ unaCorda = `unaCorda
 treCorde = `treCorde
 
 testSeq = 
-    [down, unaCorda, (testPitch, 50, 500), (testPitch, 0, 0), up, treCorde]
+    [down, unaCorda, (testPitch, 5, 500), (testPitch, 0, 0), up, treCorde]
 
 events = 
     [down, unaCorda, (60, 5, 0), (62, 5, 1500), up, (60, 0, 0), (62, 0, 1500), treCorde]
@@ -128,11 +128,11 @@ on  r pitch vel = sendMsg r (makeMsg NOTE_ON channel pitch vel)
 off r pitch     = sendMsg r (makeMsg NOTE_OFF channel pitch 0)
 ped r down      =
     if down
-        sendMsg r (makeMsg CONTROL_CHANGE channel SOST_PED 127)
+        sendMsg r (makeMsg CONTROL_CHANGE channel SOST_PED 64)
         sendMsg r (makeMsg CONTROL_CHANGE channel SOST_PED 0)
 ucPed r down    =
     if down
-        sendMsg r (makeMsg CONTROL_CHANGE channel UNA_CORDA_PED 127)
+        sendMsg r (makeMsg CONTROL_CHANGE channel UNA_CORDA_PED 64)
         sendMsg r (makeMsg CONTROL_CHANGE channel UNA_CORDA_PED 0)
 sleep           = longValue .. method (class "Thread") "sleep" [ `long ]
 
@@ -143,8 +143,15 @@ sleep           = longValue .. method (class "Thread") "sleep" [ `long ]
 ; General stuff
 ; Add to standard library!
 
-
+length    = foldl (fn (x y) x+1) 0
 find pred = foldl (fn (x y) if (pred y) y else x) ()
+
+zipWith f xs ys =
+    match (f, xs, ys)
+        (f, (x, xs), (y, ys))     = cons (f x y) (zipWith f xs ys)
+        (_, _, _)                 = ()
+    
+map_ f    = foldr (cons . f) ()
 
 
 (&&) x y =
