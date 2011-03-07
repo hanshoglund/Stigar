@@ -9,10 +9,11 @@ module Hans.Music.Stigar
 
 
 fetchDeviceBy = `num
-deviceNum     = 3
+; deviceNum     = 3
+deviceNum     = 20
 deviceName    = "Port 8"
 channel       = 0
-testPitch     = 50
+testPitch     = 100
 
 down     = `down
 up       = `up
@@ -26,6 +27,26 @@ events =
     [down, unaCorda, (60, 5, 0), (62, 5, 1500), up, (60, 0, 0), (62, 0, 1500), treCorde]
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+; ============================================================
+; Main program
 
 help _ = do print "============================================================"
             print " Stigar - for player piano                                  "
@@ -77,6 +98,7 @@ r _ = run ()
 main = help ()
 
 
+
 ; ============================================================
 ; MIDI backend
 
@@ -101,13 +123,12 @@ send              = method Receiver "send" [ MidiMessage, `long ]
 intValue          = method BigInteger "intValue" ()
 longValue         = method BigInteger "longValue" ()
 
-printDevices _ = do (print "\nDevices:")
-                    map (string .. (++ "    ") .. print)
-                        (getMidiDeviceInfo ())
+printDevices _ = do print "\nDevices:"
+                    join "\n" (getMidiDeviceInfo ())
 deviceByName name = getMidiDevice
                         find (string .. (== name)) (getMidiDeviceInfo ())
 deviceByNum n     = getMidiDevice
-                        nth n (getMidiDeviceInfo ())
+                        index n (getMidiDeviceInfo ())
 device _          = match fetchDeviceBy
                         _:`num = deviceByNum deviceNum
                         _:`name = deviceByName deviceName
