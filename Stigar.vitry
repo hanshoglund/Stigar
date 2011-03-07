@@ -13,7 +13,10 @@ fetchDeviceBy = `num
 deviceNum     = 20
 deviceName    = "Port 8"
 channel       = 0
-testPitch     = 100
+testPitch     = 108
+                   
+minPitch = 21
+numPitch = 88
 
 down     = `down
 up       = `up
@@ -21,23 +24,49 @@ unaCorda = `unaCorda
 treCorde = `treCorde
 
 testSeq = 
-    [down, unaCorda, (testPitch, 5, 500), (testPitch, 0, 0), up, treCorde]
-
-events = 
-    [down, unaCorda, (60, 5, 0), (62, 5, 1500), up, (60, 0, 0), (62, 0, 1500), treCorde]
+    [down, unaCorda, (testPitch, 20, 500), (testPitch, 0, 0), up, treCorde]
 
 
 
 
 
 
+onOff ps vs ds = zip3L 
+                    dupL ps
+                    interlL vs (repeat 0)
+                    interlL ds (repeat 0)
+
+walk start = unfold (fn (x) (x, (x + (random 2) * 2 - 1))) start
 
 
 
+walkAndSplit start n = 
+    let path = take n (walk start)
+        final = last path
+        path ++ delay (fn (_) interlL (walkAndSplit final n) (walkAndSplit final n))
+       
+alternateOff xs = interlL xs (repeat 0)
+
+walkAndSplitWith start n xs ys = 
+    let path = take n (walk start)
+        xs1   = take n xs
+        ys1   = take n ys
+        xs2   = drop n xs 
+        ys2   = drop n ys 
+        final = last path
+        zip3 (dup path) (alternateOff (take n xs)) (dup (take n ys))
+            ++ delay (fn (_) 
+                interlL 
+                    walkAndSplitWith final n xs2 ys2 
+                    walkAndSplitWith (final + 10) n xs2 ys2)
+
+events2 = 
+    ; [down, unaCorda, (60, 5, 0), (62, 5, 1500), up, (60, 0, 0), (62, 0, 1500), treCorde]
+    ; onOff (walkAndSplit 60 10) (1 ... 128) (repeat 150)
+    (walkAndSplitWith 60 5 (repeat 5) (repeat 300))
 
 
-
-
+events = take 50000 events2
 
 
 
@@ -72,7 +101,13 @@ run _  = do
             play recv events
             closeDev dev
             ()
+            
 
+
+
+
+; Send all notes off
+; allOff r = print (map (fn (i) do (on r i 0) i) (1 ... 128))
 
 ; Plays a list of events
 ; Blocks the current thread
@@ -145,7 +180,13 @@ makeMsg cmd ch data1 data2 =
 sendMsg recv msg =
     send recv msg (longValue 0)
 
-on  r pitch vel = sendMsg r (makeMsg NOTE_ON channel pitch vel)
+
+; on  r pitch vel = sendMsg r (makeMsg NOTE_ON channel pitch vel)
+
+on  r pitch vel = do (print (pitch, vel))
+                     sendMsg r (makeMsg NOTE_ON channel pitch vel)
+
+
 off r pitch     = sendMsg r (makeMsg NOTE_OFF channel pitch 0)
 ped r down      =
     if down
@@ -155,7 +196,7 @@ ucPed r down    =
     if down
         sendMsg r (makeMsg CONTROL_CHANGE channel UNA_CORDA_PED 64)
         sendMsg r (makeMsg CONTROL_CHANGE channel UNA_CORDA_PED 0)
-sleep           = longValue .. method (class "Thread") "sleep" [ `long ]
+; sleep           = longValue .. method (class "Thread") "sleep" [ `long ]
 
 
 
