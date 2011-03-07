@@ -26,28 +26,20 @@ treCorde = `treCorde
 testSeq = 
     [down, unaCorda, (testPitch, 20, 500), (testPitch, 0, 0), up, treCorde]
 
+; onOff ps vs ds = zip3L 
+;                     dupL ps
+;                     interlL vs (repeat 0)
+;                     interlL ds (repeat 0)
+; walkAndSplit start n = 
+;     let path = take n (walk start)
+;         final = last path
+;         path ++ delay (fn (_) interlL (walkAndSplit final n) (walkAndSplit final n))
 
-
-
-
-
-onOff ps vs ds = zip3L 
-                    dupL ps
-                    interlL vs (repeat 0)
-                    interlL ds (repeat 0)
-
-walk start = unfold (fn (x) (x, (x + (random 2) * 2 - 1))) start
-
-
-
-walkAndSplit start n = 
-    let path = take n (walk start)
-        final = last path
-        path ++ delay (fn (_) interlL (walkAndSplit final n) (walkAndSplit final n))
-       
+walk start      = unfold (fn (x) (x, (x + (random 2) * 2 - 1))) start
 alternateOff xs = interlL xs (repeat 0)
+randoms n = (map (fn (x) random n) (repeat 1))
 
-walkAndSplitWith start n xs ys = 
+walkAndSplitWith start n xs ys = ;do print "forking" 
     let path  = take n (walk start)
         xs1   = take n xs
         ys1   = take n ys
@@ -63,7 +55,9 @@ walkAndSplitWith start n xs ys =
 events = 
     ; [down, unaCorda, (60, 5, 0), (62, 5, 1500), up, (60, 0, 0), (62, 0, 1500), treCorde]
     ; onOff (walkAndSplit 60 10) (1 ... 128) (repeat 150)
-    bufferStream 3000 (walkAndSplitWith 60 40 (repeat 42) (repeat 400))
+    bufferStream 1200 
+        walkAndSplitWith 60 50 (repeat 16) (map (fn (x) (x + 1) * 400) (randoms 2))
+        ++ walkAndSplitWith 60 50 (palindrome (32 ... 70)) (palindrome (200 ... 4000))
 
 
 
@@ -120,9 +114,9 @@ play r events = foldl playEvent r events
 playEvent r action =
     match action
         (pitch, vel, dur) = do 
-                            print (pitch, vel, dur) 
+                            ; print (pitch, vel, dur) 
                             on r pitch vel
-                            sleep (dur + 8) 
+                            sleep dur 
                             r
         _:down            = do ped r true
                             r
