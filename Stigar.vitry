@@ -48,25 +48,23 @@ walkAndSplit start n =
 alternateOff xs = interlL xs (repeat 0)
 
 walkAndSplitWith start n xs ys = 
-    let path = take n (walk start)
+    let path  = take n (walk start)
         xs1   = take n xs
         ys1   = take n ys
         xs2   = drop n xs 
         ys2   = drop n ys 
         final = last path
-        zip3 (dup path) (alternateOff (take n xs)) (dup (take n ys))
+        zip3 (dup path) (alternateOff (take n xs)) (alternateOff (take n ys))
             ++ delay (fn (_) 
                 interlL 
-                    walkAndSplitWith final n xs2 ys2 
-                    walkAndSplitWith (final + 10) n xs2 ys2)
+                    walkAndSplitWith (final - 2) n xs2 (repeat 0) 
+                    walkAndSplitWith (final + 2) n xs2 ys2)
 
-events2 = 
+events = 
     ; [down, unaCorda, (60, 5, 0), (62, 5, 1500), up, (60, 0, 0), (62, 0, 1500), treCorde]
     ; onOff (walkAndSplit 60 10) (1 ... 128) (repeat 150)
-    (walkAndSplitWith 60 5 (repeat 5) (repeat 300))
+    bufferStream 3000 (walkAndSplitWith 60 40 (repeat 42) (repeat 400))
 
-
-events = take 50000 events2
 
 
 
@@ -82,8 +80,9 @@ help _ = do print "============================================================"
             print " Hans Hoglund (2011)                                        "
             print "============================================================"
             print "    p () or printDevices ()                                 "
-            print "    t () or test ()                                          "
+            print "    t () or test ()                                         "
             print "    r () or run ()                                          "
+            print "    o () or allOff ()                                       "
             print "    deviceByName name                                       "
             print "    deviceByNum  n                                          "
             print "============================================================"
@@ -102,12 +101,17 @@ run _  = do
             closeDev dev
             ()
             
+allOff _  = do   
+            dev = device ()
+            recv = openDevAndFetchRecv dev
+            do print (map (fn (i) (off recv i)) (1 ... 128))
+            closeDev dev
+            ()
+            
 
 
 
 
-; Send all notes off
-; allOff r = print (map (fn (i) do (on r i 0) i) (1 ... 128))
 
 ; Plays a list of events
 ; Blocks the current thread
@@ -115,8 +119,10 @@ run _  = do
 play r events = foldl playEvent r events
 playEvent r action =
     match action
-        (pitch, vel, dur) = do  on r pitch vel
-                            sleep dur
+        (pitch, vel, dur) = do 
+                            print (pitch, vel, dur) 
+                            on r pitch vel
+                            sleep (dur + 8) 
                             r
         _:down            = do ped r true
                             r
@@ -130,6 +136,7 @@ playEvent r action =
 p _ = printDevices ()
 t _ = test ()
 r _ = run ()
+o _ = allOff ()
 main = help ()
 
 
@@ -181,10 +188,10 @@ sendMsg recv msg =
     send recv msg (longValue 0)
 
 
+on  r pitch vel = if (pitch > minPitch && pitch < (minPitch + numPitch)) 
+                      sendMsg r (makeMsg NOTE_ON channel pitch vel)
+                      ()
 ; on  r pitch vel = sendMsg r (makeMsg NOTE_ON channel pitch vel)
-
-on  r pitch vel = do (print (pitch, vel))
-                     sendMsg r (makeMsg NOTE_ON channel pitch vel)
 
 
 off r pitch     = sendMsg r (makeMsg NOTE_OFF channel pitch 0)
@@ -196,6 +203,7 @@ ucPed r down    =
     if down
         sendMsg r (makeMsg CONTROL_CHANGE channel UNA_CORDA_PED 64)
         sendMsg r (makeMsg CONTROL_CHANGE channel UNA_CORDA_PED 0)
+; res r           = sendMsg r (makeMsg 123 0 0 0)
 ; sleep           = longValue .. method (class "Thread") "sleep" [ `long ]
 
 
