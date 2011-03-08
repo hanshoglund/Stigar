@@ -90,15 +90,15 @@ insertAfter xs ns ys =
         take n ys ++ [x] ++ delay (fn (_) insertAfter (tail xs) (tail ns) (drop n ys))
 
 events = 
-    ; [down, unaCorda, (60, 5, 0), (62, 5, 1500), up, (60, 0, 0), (62, 0, 1500), treCorde]
-    ; onOff (walkAndSplit 60 10) (1 ... 128) (repeat 150)
-    bufferStream BUFFER_LENGTH
-        [down] ++
-            insertAfter (repeat down) (repeat 1000)
+    let _ = _
+        part1 = take 1200
+            [down] ++ insertAfter (repeat down) (repeat 1000)
                 walkAndSplitWith 400 60 7 (repeat 1) (repeat 70)
-
-
-
+        part2 = [up, treCorde]
+        part3 = take 1200
+            [down] ++ insertAfter (repeat down) (repeat 1000)
+                walkAndSplitWith 400 60 7 (repeat 60) (repeat 70)
+        part1 ++ part2 ++ part3
 
 
 
@@ -127,6 +127,9 @@ test _ = do dev = device ()
 run _  = do dev = device ()
             recv = openDevAndFetchRecv dev
             playAll recv events
+            ; force (map (fn (i) (off recv i)) (1 ... 128))
+            ; playEvent recv up
+            ; playEvent recv treCorde
             closeDev dev
             ()
             
