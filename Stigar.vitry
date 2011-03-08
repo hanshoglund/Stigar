@@ -110,7 +110,7 @@ events =
     let _ = _
         ; 8000
         part1 = take 5000
-            walkAndSplitWith 380 60 7 0 (line 1 80 6000) (repeat 70)
+            walkAndSplitWith 380 60 5 0 (line 1 80 6000) (repeat 70)
         
         part2 = take 200
             [down, unaCorda] ++ insertAfter (repeat down) (repeat 100)
