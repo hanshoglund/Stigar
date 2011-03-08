@@ -109,28 +109,26 @@ velPart3 = insertAfter (repeat 80) (map (+ 30) (randoms 30)) (repeat 60)
 events = 
     let _ = _
         ; 8000
-        part1 = take 6000
-            [down] ++ insertAfter (repeat down) (repeat 100)
-                walkAndSplitWith 500 60 7 0 (line 1 80 6000) (repeat 70)
+        part1 = take 5000
+            walkAndSplitWith 380 60 7 0 (line 1 80 6000) (repeat 70)
         
         part2 = take 200
             [down, unaCorda] ++ insertAfter (repeat down) (repeat 100)
                 toPitches (modeFrom [0, 3, 6, 8] 9)
                     walkAndSplitWith 4 18 4 4 velPart2 (repeat 4000)
 
-        part3 = take 2000
-            [down] ++ insertAfter (repeat down) (repeat 100)
-                walkAndSplitWith 120 60 7 0 velPart3 (repeat 70)
+        part3 = take 4000
+            [down] ++ insertAfter (repeat down) (repeat 600)
+                walkAndSplitWith 300 60 7 0 velPart3 (repeat 70)
 
         
         ; Assemble the piece
         ; The number of events here must be > the total number of
         ; events in the parts!
-        take 8200 
+        take 9200 
             part1 ++ [reset, (`sleep, 1200)] 
             ++ part2 ++ [reset, (`sleep, 800)] 
-            ++ part3 
-
+            ++ part3 ++ [reset, (`sleep, 800)] 
 
 
 
