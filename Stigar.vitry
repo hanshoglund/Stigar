@@ -27,6 +27,7 @@ down     = `down
 up       = `up
 unaCorda = `unaCorda
 treCorde = `treCorde
+reset    = `reset
 
 numEvents = set (ref ()) 0
 
@@ -91,14 +92,22 @@ insertAfter xs ns ys =
 
 events = 
     let _ = _
-        part1 = take 1200
+        part1 = take 200
             [down] ++ insertAfter (repeat down) (repeat 1000)
                 walkAndSplitWith 400 60 7 (repeat 1) (repeat 70)
         part2 = [up, treCorde]
         part3 = take 1200
             [down] ++ insertAfter (repeat down) (repeat 1000)
                 walkAndSplitWith 400 60 7 (repeat 60) (repeat 70)
-        part1 ++ part2 ++ part3
+        
+        ; Assemble the piece
+        ; The number of events here must be > the total number of
+        ; events in the parts!
+        take 500 
+            part1 ++ [reset] 
+            ++ part2 
+            ++ [reset] 
+            ++ part3
 
 
 
@@ -127,18 +136,15 @@ test _ = do dev = device ()
 run _  = do dev = device ()
             recv = openDevAndFetchRecv dev
             playAll recv events
-            ; force (map (fn (i) (off recv i)) (1 ... 128))
-            ; playEvent recv up
-            ; playEvent recv treCorde
+            sleep 2000
+            sendAllOff recv
             closeDev dev
             ()
             
 allOff _  = do   
             dev = device ()
             recv = openDevAndFetchRecv dev
-            force (map (fn (i) (off recv i)) (1 ... 128))
-            playEvent recv up
-            playEvent recv treCorde
+            sendAllOff recv
             closeDev dev
             ()
 
@@ -156,18 +162,27 @@ playEvent r action =
 
         match action
             (pitch, vel, dur) = do 
-                                ; print (pitch, vel, dur) 
-                                on r pitch vel
-                                sleep dur 
-                                r
+                                  ; print (pitch, vel, dur) 
+                                  on r pitch vel
+                                  sleep dur 
+                                  r
             _ : down            = do ped r true
-                                r
+                                  r
             _ : up              = do ped r false
-                                r
+                                  r
             _ : unaCorda        = do ucPed r true
-                                r
+                                  r
             _ : treCorde        = do ucPed r false
-                                r
+                                  r
+            _ : reset           = do sendAllOff r
+                                  r
+
+sendAllOff r = 
+    do force 
+           map (fn (i) (off recv i)) (1 ... 128)
+       ped r false
+       ucPed r false
+
 
 p _ = printDevices ()
 t _ = test ()
