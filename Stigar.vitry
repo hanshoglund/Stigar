@@ -8,19 +8,20 @@
 module Hans.Music.Stigar
 
 
-FETCH_DEV_BY  = `num
 ; DEVICE_NUM    = 3
-DEVICE_NUM    = 20
-DEVICE_NAME   = "Port 8"
-CHANNEL       = 0
-TEST_PITCH    = 108
+DEVICE_NUM      = 20
+DEVICE_NAME     = "Port 8"
+FETCH_DEV_BY    : (`num | `name) = `num
+
+CHANNEL         = 0
+TEST_PITCH      = 108
 ; BUFFER_LENGTH = 20000
-BUFFER_LENGTH = 2000
+BUFFER_LENGTH   = 2000
                    
-MIN_PITCH = 21
-NUM_PITCHES = 88
-MAX_PITCH = MIN_PITCH + NUM_PITCHES - 1
-SAFETY = 7
+MIN_PITCH       = 21
+NUM_PITCHES     = 88
+MAX_PITCH       = MIN_PITCH + NUM_PITCHES - 1
+SAFETY          = 7
 
 down     = `down
 up       = `up
@@ -29,15 +30,12 @@ treCorde = `treCorde
 
 numEvents = set (ref ()) 0
 
-testSeq = 
-    [down, unaCorda, (TEST_PITCH, 20, 500), (TEST_PITCH, 0, 0), up, treCorde]
-    ; [(60, 80, 5), (60, 0, 0), (61, 127, 5000), (61, 0, 0)]
+; ============================================================
+
+testSeq = [down, unaCorda, (TEST_PITCH, 20, 500), (TEST_PITCH, 0, 0), up, treCorde]
                      
-
-modeFrom xs range = fn (i) 
-    index (i % length xs) xs + floor (i / length xs) * range
-
-diatonic = modeFrom [0, 2, 4, 5, 7, 9, 11] 12
+; ============================================================
+; Generate event stream
 
 ; Walk one value up or down
 walk start  = unfold (fn (x) (x, (x + (random 2) * 2 - 1))) start 
@@ -84,12 +82,20 @@ toPitches f xs =
             (p, v, d) = (f p, v, d)
             x         = x
 
+; Lazily insert one element of xs after n elements of ys
+; [a] -> [int] -> [a] -> [a]
+insertAfter xs ns ys =
+    let x = head xs
+        n = head ns
+        take n ys ++ [x] ++ delay (fn (_) insertAfter (tail xs) (tail ns) (drop n ys))
+
 events = 
     ; [down, unaCorda, (60, 5, 0), (62, 5, 1500), up, (60, 0, 0), (62, 0, 1500), treCorde]
     ; onOff (walkAndSplit 60 10) (1 ... 128) (repeat 150)
     bufferStream BUFFER_LENGTH
-        ; toPitches diatonic 
-            walkAndSplitWith 400 60 7 (repeat 1) (repeat 70)
+        [down] ++
+            insertAfter (repeat down) (repeat 1000)
+                walkAndSplitWith 400 60 7 (repeat 1) (repeat 70)
 
 
 
@@ -109,58 +115,55 @@ help _ = do print "============================================================"
             print "    t () or test ()                                         "
             print "    r () or run ()                                          "
             print "    o () or allOff ()                                       "
-            print "    deviceByName name                                       "
-            print "    deviceByNum  n                                          "
             print "============================================================"
 
 
-test _ = do
-            dev = device ()
+test _ = do dev = device ()
             recv = openDevAndFetchRecv dev
-            play recv testSeq
+            playAll recv testSeq
             closeDev dev
             ()
-run _  = do
-            dev = device ()
+
+run _  = do dev = device ()
             recv = openDevAndFetchRecv dev
-            play recv events
+            playAll recv events
             closeDev dev
             ()
             
 allOff _  = do   
             dev = device ()
             recv = openDevAndFetchRecv dev
-            do force (map (fn (i) (off recv i)) (1 ... 128))
+            force (map (fn (i) (off recv i)) (1 ... 128))
+            playEvent recv up
+            playEvent recv treCorde
             closeDev dev
             ()
-            
 
 
+; Play a list of events on the current thread
+;
+;   receiver [(pitch, vel, dur)] -> receiver
+playAll r events = foldl playEvent r events
 
-
-
-; Plays a list of events
-; Blocks the current thread
-;   [(pitch, vel, dur)] -> [(pitch, vel, dur)]
-play r events = foldl playEvent r events
 playEvent r action =
     do  
         n = (get numEvents)
         set numEvents (n + 1)
         if (n % 100 == 0) (print n) else ()
+
         match action
             (pitch, vel, dur) = do 
                                 ; print (pitch, vel, dur) 
                                 on r pitch vel
                                 sleep dur 
                                 r
-            _:down            = do ped r true
+            _ : down            = do ped r true
                                 r
-            _:up              = do ped r false
+            _ : up              = do ped r false
                                 r
-            _:unaCorda        = do ucPed r true
+            _ : unaCorda        = do ucPed r true
                                 r
-            _:treCorde        = do ucPed r false
+            _ : treCorde        = do ucPed r false
                                 r
 
 p _ = printDevices ()
