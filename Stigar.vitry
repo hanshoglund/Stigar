@@ -8,15 +8,19 @@
 module Hans.Music.Stigar
 
 
-fetchDeviceBy = `num
-; deviceNum     = 3
-deviceNum     = 20
-deviceName    = "Port 8"
-channel       = 0
-testPitch     = 108
+FETCH_DEV_BY  = `num
+; DEVICE_NUM    = 3
+DEVICE_NUM    = 20
+DEVICE_NAME   = "Port 8"
+CHANNEL       = 0
+TEST_PITCH    = 108
+; BUFFER_LENGTH = 20000
+BUFFER_LENGTH = 2000
                    
-minPitch = 21
-numPitch = 88
+MIN_PITCH = 21
+NUM_PITCHES = 88
+MAX_PITCH = MIN_PITCH + NUM_PITCHES - 1
+SAFETY = 7
 
 down     = `down
 up       = `up
@@ -24,34 +28,43 @@ unaCorda = `unaCorda
 treCorde = `treCorde
 
 testSeq = 
-    [down, unaCorda, (testPitch, 20, 500), (testPitch, 0, 0), up, treCorde]
+    [down, unaCorda, (TEST_PITCH, 20, 500), (TEST_PITCH, 0, 0), up, treCorde]
     ; [(60, 80, 5), (60, 0, 0), (61, 127, 5000), (61, 0, 0)]
+                     
 
-; onOff ps vs ds = zip3L 
-;                     dupL ps
-;                     interlL vs (repeat 0)
-;                     interlL ds (repeat 0)
-; walkAndSplit start n = 
-;     let path = take n (walk start)
-;         final = last path
-;         path ++ delay (fn (_) interlL (walkAndSplit final n) (walkAndSplit final n))
-                 
+modeFrom xs range = fn (i) 
+    index (i % length xs) xs + floor (i / length xs) * range
+
+diatonic = modeFrom [0, 2, 4, 5, 7, 9, 11] 12
 
 ; Walk one value up or down
 walk start  = unfold (fn (x) (x, (x + (random 2) * 2 - 1))) start 
 
 ; Walk n values up or down
-walkn n start = let path = map (+ start) (map (pick [id, negate]) (1 ... (n + 1)))
-                    final = last path
-                    path ++ delay (fn (_) walkn n final)
-                 
+walkn n start = 
+    let direction = posOrNeg (1/2)
+        path = map (+ start) (map direction (1 ... (n + 1))) 
+        final = last path
+        path ++ delay (fn (_) walkn n final)
+
+; As walkn, but avoid to get outside keyboard range 
+walknWeighted n start = 
+    let direction = if (start < MIN_PITCH + SAFETY) id (if (start > MAX_PITCH - SAFETY) negate posOrNeg (1/2))
+        path = map (+ start) (map direction (1 ... (n + 1))) 
+        final = last path
+        path ++ delay (fn (_) walkn n final)
+        
+posOrNeg weight =
+    if (randomFloat () < approx weight)
+        id
+        negate
     
     
 alternateOff xs = interlL xs (repeat 0)
 randoms n = (map (fn (x) random n) (repeat 1))
 
-walkAndSplitWith start n xs ys = ;do print "forking" 
-    let path  = take n (walkn 5 start)
+walkAndSplitWith start n step xs ys = ;do print "forking" 
+    let path  = take n (walknWeighted step start)
         xs1   = take n xs
         ys1   = take n ys
         xs2   = drop n xs 
@@ -60,17 +73,23 @@ walkAndSplitWith start n xs ys = ;do print "forking"
         zip3 (dup path) (alternateOff (take n xs)) (alternateOff (take n ys))
             ++ delay (fn (_) 
                 interlL 
-                    walkAndSplitWith (final - 3) n xs2 (repeat 0) 
-                    walkAndSplitWith (final + 3) n xs2 ys2       ) 
+                    walkAndSplitWith (final - 0) n step xs2 (repeat 0) 
+                    walkAndSplitWith (final + 0) n step xs2 ys2       )
+
+toPitches f xs = 
+    (flip map) xs
+        fn (x) match x
+            (p, v, d) = (f p, v, d)
+            x         = x
 
 events = 
     ; [down, unaCorda, (60, 5, 0), (62, 5, 1500), up, (60, 0, 0), (62, 0, 1500), treCorde]
     ; onOff (walkAndSplit 60 10) (1 ... 128) (repeat 150)
-    bufferStream 1200
-        map id
-            walkAndSplitWith 60 400 (repeat 1) (repeat 70)
-            ; walkAndSplitWith 60 20 (repeat 16) (map (fn (x) (x + 1) * 200) (randoms 2))
-            ; ++ walkAndSplitWith 60 50 (palindrome (32 ... 70)) (palindrome (200 ... 4000))
+    bufferStream BUFFER_LENGTH
+        ; toPitches diatonic 
+            walkAndSplitWith 60 400 7 (repeat 1) (repeat 70)
+        ; walkAndSplitWith 60 20 (repeat 16) (map (fn (x) (x + 1) * 200) (randoms 2))
+        ; ++ walkAndSplitWith 60 50 (palindrome (32 ... 70)) (palindrome (200 ... 4000))
 
 
 
@@ -179,9 +198,9 @@ deviceByName name = getMidiDevice
                         find (string .. (== name)) (getMidiDeviceInfo ())
 deviceByNum n     = getMidiDevice
                         index n (getMidiDeviceInfo ())
-device _          = match fetchDeviceBy
-                        _:`num = deviceByNum deviceNum
-                        _:`name = deviceByName deviceName
+device _          = match FETCH_DEV_BY
+                        _:`num = deviceByNum DEVICE_NUM
+                        _:`name = deviceByName DEVICE_NAME
 openDevAndFetchRecv dev =
     do (method MidiDevice "open" ()) dev
        (method MidiDevice "getReceiver" ()) dev
@@ -196,21 +215,21 @@ sendMsg recv msg =
     send recv msg (longValue 0)
 
 
-on  r pitch vel = if (pitch > minPitch && pitch < (minPitch + numPitch)) 
-                      sendMsg r (makeMsg NOTE_ON channel pitch vel)
+on  r pitch vel = if (pitch > MIN_PITCH && pitch < (MIN_PITCH + NUM_PITCHES)) 
+                      sendMsg r (makeMsg NOTE_ON CHANNEL pitch vel)
                       ()
-; on  r pitch vel = sendMsg r (makeMsg NOTE_ON channel pitch vel)
+; on  r pitch vel = sendMsg r (makeMsg NOTE_ON CHANNEL pitch vel)
 
 
-off r pitch     = sendMsg r (makeMsg NOTE_OFF channel pitch 0)
+off r pitch     = sendMsg r (makeMsg NOTE_OFF CHANNEL pitch 0)
 ped r down      =
     if down
-        sendMsg r (makeMsg CONTROL_CHANGE channel SOST_PED 64)
-        sendMsg r (makeMsg CONTROL_CHANGE channel SOST_PED 0)
+        sendMsg r (makeMsg CONTROL_CHANGE CHANNEL SOST_PED 64)
+        sendMsg r (makeMsg CONTROL_CHANGE CHANNEL SOST_PED 0)
 ucPed r down    =
     if down
-        sendMsg r (makeMsg CONTROL_CHANGE channel UNA_CORDA_PED 64)
-        sendMsg r (makeMsg CONTROL_CHANGE channel UNA_CORDA_PED 0)
+        sendMsg r (makeMsg CONTROL_CHANGE CHANNEL UNA_CORDA_PED 64)
+        sendMsg r (makeMsg CONTROL_CHANGE CHANNEL UNA_CORDA_PED 0)
 ; res r           = sendMsg r (makeMsg 123 0 0 0)
 ; sleep           = longValue .. method (class "Thread") "sleep" [ `long ]
 
