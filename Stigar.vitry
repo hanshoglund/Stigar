@@ -27,6 +27,8 @@ up       = `up
 unaCorda = `unaCorda
 treCorde = `treCorde
 
+numEvents = set (ref ()) 0
+
 testSeq = 
     [down, unaCorda, (TEST_PITCH, 20, 500), (TEST_PITCH, 0, 0), up, treCorde]
     ; [(60, 80, 5), (60, 0, 0), (61, 127, 5000), (61, 0, 0)]
@@ -63,7 +65,7 @@ posOrNeg weight =
 alternateOff xs = interlL xs (repeat 0)
 randoms n = (map (fn (x) random n) (repeat 1))
 
-walkAndSplitWith start n step xs ys = ;do print "forking" 
+walkAndSplitWith n start step xs ys = ;do print "forking" 
     let path  = take n (walknWeighted step start)
         xs1   = take n xs
         ys1   = take n ys
@@ -73,8 +75,8 @@ walkAndSplitWith start n step xs ys = ;do print "forking"
         zip3 (dup path) (alternateOff (take n xs)) (alternateOff (take n ys))
             ++ delay (fn (_) 
                 interlL 
-                    walkAndSplitWith (final - 0) n step xs2 (repeat 0) 
-                    walkAndSplitWith (final + 0) n step xs2 ys2       )
+                    walkAndSplitWith n (final - 0) step xs2 (repeat 0) 
+                    walkAndSplitWith n (final + 0) step xs2 ys2       )
 
 toPitches f xs = 
     (flip map) xs
@@ -87,9 +89,7 @@ events =
     ; onOff (walkAndSplit 60 10) (1 ... 128) (repeat 150)
     bufferStream BUFFER_LENGTH
         ; toPitches diatonic 
-            walkAndSplitWith 60 400 7 (repeat 1) (repeat 70)
-        ; walkAndSplitWith 60 20 (repeat 16) (map (fn (x) (x + 1) * 200) (randoms 2))
-        ; ++ walkAndSplitWith 60 50 (palindrome (32 ... 70)) (palindrome (200 ... 4000))
+            walkAndSplitWith 400 60 7 (repeat 1) (repeat 70)
 
 
 
@@ -144,20 +144,24 @@ allOff _  = do
 ;   [(pitch, vel, dur)] -> [(pitch, vel, dur)]
 play r events = foldl playEvent r events
 playEvent r action =
-    match action
-        (pitch, vel, dur) = do 
-                            ; print (pitch, vel, dur) 
-                            on r pitch vel
-                            sleep dur 
-                            r
-        _:down            = do ped r true
-                            r
-        _:up              = do ped r false
-                            r
-        _:unaCorda        = do ucPed r true
-                            r
-        _:treCorde        = do ucPed r false
-                            r
+    do  
+        n = (get numEvents)
+        set numEvents (n + 1)
+        if (n % 100 == 0) (print n) else ()
+        match action
+            (pitch, vel, dur) = do 
+                                ; print (pitch, vel, dur) 
+                                on r pitch vel
+                                sleep dur 
+                                r
+            _:down            = do ped r true
+                                r
+            _:up              = do ped r false
+                                r
+            _:unaCorda        = do ucPed r true
+                                r
+            _:treCorde        = do ucPed r false
+                                r
 
 p _ = printDevices ()
 t _ = test ()
