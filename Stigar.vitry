@@ -8,8 +8,8 @@
 module Hans.Music.Stigar
 
 
-; DEVICE_NUM    = 3
-DEVICE_NUM      = 20
+DEVICE_NUM    = 3
+; DEVICE_NUM      = 20
 DEVICE_NAME     = "Port 8"
 FETCH_DEV_BY    : (`num | `name) = `num
 
@@ -108,9 +108,8 @@ velPart3 = insertAfter (repeat 80) (map (+ 30) (randoms 30)) (repeat 60)
 
 events = 
     let _ = _
-        ; 8000
         part1 = take 5000
-            walkAndSplitWith 380 60 5 0 (line 1 80 6000) (repeat 70)
+            walkAndSplitWith 360 60 5 0 (line 1 80 6000) (repeat 70)
         
         part2 = take 200
             [down, unaCorda] ++ insertAfter (repeat down) (repeat 100)
@@ -123,12 +122,13 @@ events =
 
         
         ; Assemble the piece
-        ; The number of events here must be > the total number of
+        ; The number of events here must be < the total number of
         ; events in the parts!
-        take 9200 
-            part1 ++ [reset, (`sleep, 1200)] 
-            ++ part2 ++ [reset, (`sleep, 800)] 
-            ++ part3 ++ [reset, (`sleep, 800)] 
+        take 9200
+            buffer BUFFER_LENGTH 
+                part1 ++ [reset, (`sleep, 1200)] 
+                ++ part2 ++ [reset, (`sleep, 800)] 
+                ++ part3 ++ [reset, (`sleep, 800)] 
 
 
 
@@ -156,7 +156,7 @@ test _ = do dev = device ()
 run _  = do dev = device ()
             recv = openDevAndFetchRecv dev
             playAll recv events
-            sleep 2000
+            sleep 8000
             sendAllOff recv
             closeDev dev
             ()
